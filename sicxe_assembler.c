@@ -5,6 +5,8 @@
 #define MAX_LEN 256
 #define VAL_LEN 10
 
+int symIndex=0;
+
 int LOCCTR[MAX_LEN];
 
 typedef struct symbol{
@@ -20,9 +22,91 @@ typedef struct intermediate{
     char comment[32];
 } intermediate;
 
+typedef struct operator
+{
+    char mnemonic[VAL_LEN];
+    int format;
+    int opcode;
+} operator;
+
+operator OPTAB[]={
+    {"ADD",3,0x18},
+    {"ADDF",3,0x58},
+    {"ADDR",2,0x90},
+    {"AND",3,0x40},
+    {"CLEAR",2,0xB4},
+    {"COMP",3,0x28},
+    {"COMPF",3,0x88},
+    {"COMPR",2,0xA0},
+    {"DIV",3,0x24},
+    {"DIVF",3,0x64},
+    {"DIVR",2,0x9C},
+    {"FIX",1,0xC4},
+    {"FLOAT",1,0xC0},
+    {"HIO",1,0xF4},
+    {"J",3,0x3C},
+    {"JEQ",3,0x30},
+    {"JGT",3,0x34},
+    {"JLT",3,0x38},
+    {"JSUB",3,0x48},
+    {"LDA",3,0x00},
+    {"LDB",3,0x68},
+    {"LDCH",3,0x50},
+    {"LDF",3,0x70},
+    {"LDL",3,0x08},
+    {"LDS",3,0x6C},
+    {"LDT",3,0x74},
+    {"LDX",3,0x04},
+    {"LPS",3,0xD0},
+    {"MUL",3,0x20},
+    {"MULF",3,0x60},
+    {"MULR",2,0x98},
+    {"NORM",1,0xC8},
+    {"OR",3,0x44},
+    {"RD",3,0xD8},
+    {"RMO",2,0xAC},
+    {"RSUB",3,0x4C},
+    {"SHIFTL",2,0xA4},
+    {"SHIFTR",2,0xA8},
+    {"SIO",1,0xF0},
+    {"SSK",3,0xEC},
+    {"STA",3,0x0C},
+    {"STB",3,0x78},
+    {"STCH",3,0x54},
+    {"STF",3,0x80},
+    {"STI",3,0xD4},
+    {"STL",3,0x14},
+    {"STS",3,0x7C},
+    {"STSW",3,0xE8},
+    {"STT",3,0x84},
+    {"STX",3,0x10},
+    {"SUB",3,0x1C},
+    {"SUBF",3,0x5C},
+    {"SUBR",2,0x94},
+    {"SVC",2,0xB0},
+    {"TD",3,0xE0},
+    {"TIO",1,0xF8},
+    {"TIX",3,0x2C},
+    {"TIXR",2,0xB8},
+    {"WD",3,0xDC}
+};
+
+
 symbol SYMBOL_TABLE[MAX_LEN];
 
 intermediate INTERMEDIATE_DATA[MAX_LEN];
+
+int findLabel(char label[])
+{
+    for(int i=0; i<symIndex; i++)
+    {
+        if(!strcmp(label, SYMBOL_TABLE[i].statement))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc)
 {
@@ -64,7 +148,7 @@ int main(int argc, char* argv[])
     char filename[32];
     int isFirstLine=1;
     int currentLine=0;
-    int symIndex=0;
+
     int interIndex=0;
     int currentLoc=0; //this is decimal, need to convert to hax
     int isNotStart=0;
@@ -87,7 +171,11 @@ int main(int argc, char* argv[])
     while(fgets(buf, BUF_LEN, fpr)!=NULL)
     {
         int i=0;
-        if(strlen(buf)==0) break;
+        if(strlen(buf)==0) 
+        {
+            currentLine++;
+            continue;
+        }
         if(buf[0]=='.')
         {
             fprintf(fpw, "  %s\n", buf);
@@ -130,9 +218,6 @@ int main(int argc, char* argv[])
                     strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
                     strcpy(SYMBOL_TABLE[symIndex].address, temp[2]);
                     symIndex++;
-                    strcpy(SYMBOL_TABLE[symIndex].statement, temp[1]);
-                    strcpy(SYMBOL_TABLE[symIndex].address, temp[2]);
-                    symIndex++;
                 }
                 else
                 {
@@ -144,7 +229,33 @@ int main(int argc, char* argv[])
 
             if(isFirstLine==0 && isNotStart==1)
             {
+                isNotStart=1;
+                int size_real=i;
+                if(hasComment) size_real=i-1;
+                int isLabelSymbol=findLabel(temp[0]);
                 
+                if(size_real==3)
+                {
+                    if(isLabelSymbol)
+                    {
+                        //error
+                    }
+                    else
+                    {
+                        strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
+                        sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
+                        symIndex++;
+                    }
+                }
+
+                if(size_real==2)
+                {
+
+                }
+                if(size_real==1)
+                {
+
+                }
             }
             
             
