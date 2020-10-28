@@ -137,7 +137,7 @@ int notOperator(char opt[], char opr[])
     }
     else if(!strcmp(opt,"BASE"))
     {
-
+        return 0;
     }
     else if(!strcmp(opt,"END"))
     {
@@ -175,7 +175,7 @@ int findOperator(char opt[])
     if(isOpt==0)
     {
         free(temp);
-        return 0;
+        return -1;
     } 
     else
     {
@@ -261,6 +261,7 @@ int main(int argc, char* argv[])
     while(fgets(buf, BUF_LEN, fpr)!=NULL)
     {
         int i=0;
+
         if(strlen(buf)==0) 
         {
             currentLine++;
@@ -296,7 +297,6 @@ int main(int argc, char* argv[])
                 if(!strcmp(temp[0], "START"))
                 {
                     currentLoc=atoi(temp[1]);
-                    writeImmediateFile(fpw, hasComment, temp, i, currentLoc);
                     strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
                     strcpy(SYMBOL_TABLE[symIndex].address, temp[1]);
                     symIndex++;
@@ -304,7 +304,6 @@ int main(int argc, char* argv[])
                 else if(!strcmp(temp[1], "START"))
                 {
                     currentLoc=atoi(temp[2]);
-                    writeImmediateFile(fpw, hasComment, temp, i, currentLoc);
                     strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
                     strcpy(SYMBOL_TABLE[symIndex].address, temp[2]);
                     symIndex++;
@@ -316,7 +315,6 @@ int main(int argc, char* argv[])
                 }
                 isFirstLine=0;
             }
-
             if(isFirstLine==0 && isNotStart==1)
             {
                 isNotStart=1;
@@ -333,13 +331,13 @@ int main(int argc, char* argv[])
                     else
                     {
                         strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
-                        sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
+                        if(!strcmp(temp[1],"BASE")) sprintf(SYMBOL_TABLE[symIndex].address, "");
+                        else sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
                         symIndex++;
                         int add_size=findOperator(temp[1]);
-                        if(add_size==0)
+                        if(add_size==-1)
                         {
                             currentLoc+=notOperator(temp[1], temp[2]);
-
                         }
                         else
                         {
@@ -351,15 +349,18 @@ int main(int argc, char* argv[])
 
                 if(size_real==2)
                 {
-
+                    int add_size=findOperator(temp[0]);
+                    if(!strcmp(temp[1],"BASE")) add_size=0;
+                    currentLoc+=add_size;
                 }
                 if(size_real==1)
                 {
-
+                    int add_size=findOperator(temp[0]);
+                    currentLoc+=add_size;
                 }
             }
             
-            
+            writeImmediateFile(fpw, hasComment, temp, i, currentLoc);
         }
         currentLine++;
     }
