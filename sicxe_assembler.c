@@ -14,22 +14,22 @@ typedef struct symbol{
     char address[VAL_LEN];
 } symbol;
 
-typedef struct intermediate{
-    char loc[VAL_LEN];
-    char label[VAL_LEN];
-    char operator[VAL_LEN];
-    char operand[VAL_LEN];
-    char comment[32];
-} intermediate;
+// typedef struct intermediate{
+//     char loc[VAL_LEN];
+//     char label[VAL_LEN];
+//     char opt[VAL_LEN];
+//     char operand[VAL_LEN];
+//     char comment[32];
+// } intermediate;
 
-typedef struct operator
+typedef struct opt
 {
     char mnemonic[VAL_LEN];
     int format;
     int opcode;
-} operator;
+} opt;
 
-operator OPTAB[]={
+opt OPTAB[]={
     {"ADD",3,0x18},
     {"ADDF",3,0x58},
     {"ADDR",2,0x90},
@@ -94,9 +94,9 @@ operator OPTAB[]={
 
 symbol SYMBOL_TABLE[MAX_LEN];
 
-intermediate INTERMEDIATE_DATA[MAX_LEN];
+//intermediate INTERMEDIATE_DATA[MAX_LEN];
 
-int notOperator(char opt[], char opr[])
+int notopt(char opt[], char opr[])
 {
 
     if(!strcmp(opt,"WORD"))
@@ -141,14 +141,12 @@ int notOperator(char opt[], char opr[])
     }
     else if(!strcmp(opt,"END"))
     {
-
+        return 0;
     }
-
-
     return -1;
 }
 
-int findOperator(char opt[])
+int findOpt(char opt[])
 {
     int len=strlen(opt);
     char* temp=(char*)malloc(sizeof(char)*len);
@@ -160,7 +158,7 @@ int findOperator(char opt[])
         int j=1;
         for(j; j<len; j++) temp[j-1]=opt[j];
         hasPlus=1;
-        temp[j]='\0';
+        temp[j-1]='\0';
     }
     else strcpy(temp, opt);
     int i=0;
@@ -174,14 +172,14 @@ int findOperator(char opt[])
     }
     if(isOpt==0)
     {
-        free(temp);
+        //free(temp);
         return -1;
     } 
     else
     {
         format_size=OPTAB[i].format;
         if(hasPlus) format_size+=1;
-        free(temp);
+        //free(temp);
         return format_size;
     }
 }
@@ -202,9 +200,16 @@ void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, in
 {
     int size_real=size;
     char locstr[VAL_LEN];
+    int isNoLoc=0;
     sprintf(locstr, "%04x", loc);
     if(hasComment) size_real=size-1;
-    fprintf(fpw, "%s    ", locstr);
+    for(int k=0; k<size; k++)
+    {
+        if(!strcmp(temp[k],"BASE")) isNoLoc=1;
+        if(!strcmp(temp[k],"END")) isNoLoc=1;
+    }
+    if(isNoLoc) fprintf(fpw, "   ");
+    else fprintf(fpw, "%s    ", locstr);
     if(size_real==3)
     {
         fprintf(fpw,"%s %s  %s", temp[0], temp[1], temp[2]);
@@ -242,12 +247,14 @@ int main(int argc, char* argv[])
     int interIndex=0;
     int currentLoc=0; //this is decimal, need to convert to hax
     int isNotStart=0;
-
+    printf("%d", argc);
+    printf("%s", argv[1]);
     if(argc <= 1)
     {
         printf("No input.\n");
         exit(1);
     }
+
     strcpy(filename, argv[1]);
     fpr=fopen(filename, "r");
     fpw=fopen("intermediate", "w");
@@ -281,8 +288,6 @@ int main(int argc, char* argv[])
 
             while(ptr != NULL)
             {
-                strcpy(temp[i++],ptr);
-                ptr=strtok(NULL, " \t");
                 if(ptr[0]=='.')
                 {
                     strcat(ptr,strtok(NULL, ""));
@@ -290,6 +295,9 @@ int main(int argc, char* argv[])
                     hasComment=1;
                     break;
                 }
+                strcpy(temp[i++],ptr);
+                ptr=strtok(NULL, " \t");
+                
             }
             
             if(isFirstLine)
@@ -327,17 +335,17 @@ int main(int argc, char* argv[])
                     if(isLabelSymbol)
                     {
                         //error
+                        exit(1);
                     }
                     else
                     {
                         strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
-                        if(!strcmp(temp[1],"BASE")) sprintf(SYMBOL_TABLE[symIndex].address, "");
-                        else sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
+                        if(strcmp(temp[1],"BASE")!=0 && strcmp(temp[1],"END")!=0) sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
                         symIndex++;
-                        int add_size=findOperator(temp[1]);
+                        int add_size=findOpt(temp[1]);
                         if(add_size==-1)
                         {
-                            currentLoc+=notOperator(temp[1], temp[2]);
+                            currentLoc+=notopt(temp[1], temp[2]);
                         }
                         else
                         {
@@ -349,13 +357,13 @@ int main(int argc, char* argv[])
 
                 if(size_real==2)
                 {
-                    int add_size=findOperator(temp[0]);
+                    int add_size=findOpt(temp[0]);
                     if(!strcmp(temp[1],"BASE")) add_size=0;
                     currentLoc+=add_size;
                 }
                 if(size_real==1)
                 {
-                    int add_size=findOperator(temp[0]);
+                    int add_size=findOpt(temp[0]);
                     currentLoc+=add_size;
                 }
             }
@@ -364,6 +372,9 @@ int main(int argc, char* argv[])
         }
         currentLine++;
     }
+    fclose(fpw);
+    fclose(fpr);
+    //pass2
 
     return 0;
 }
