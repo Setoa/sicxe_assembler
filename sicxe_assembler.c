@@ -96,6 +96,96 @@ symbol SYMBOL_TABLE[MAX_LEN];
 
 intermediate INTERMEDIATE_DATA[MAX_LEN];
 
+int notOperator(char opt[], char opr[])
+{
+
+    if(!strcmp(opt,"WORD"))
+    {
+        return 3;
+    }
+    else if(!strcmp(opt,"RESW"))
+    {
+        return 3*atoi(opr);
+    }
+    else if(!strcmp(opt,"RESB"))
+    {
+        return atoi(opr);
+    }
+    else if(!strcmp(opt,"BYTE"))
+    {
+        if(opr[0]=='C')
+        {
+            int charcount=0;
+            for(int i=1; i<strlen(opr); i++)
+            {
+                if(opr[i]!='\'')
+                {
+                    charcount++;
+                }
+            }
+            return charcount;
+        }
+        else if(opr[0]=='X')
+        {
+            return 1;
+        }
+        else
+        {
+            return 1;
+        }
+        return -1;
+    }
+    else if(!strcmp(opt,"BASE"))
+    {
+
+    }
+    else if(!strcmp(opt,"END"))
+    {
+
+    }
+
+
+    return -1;
+}
+
+int findOperator(char opt[])
+{
+    int len=strlen(opt);
+    char* temp=(char*)malloc(sizeof(char)*len);
+    int isOpt=0;
+    int hasPlus=0;
+    int format_size;
+    if(opt[0]=='+')
+    {
+        int j=1;
+        for(j; j<len; j++) temp[j-1]=opt[j];
+        hasPlus=1;
+        temp[j]='\0';
+    }
+    else strcpy(temp, opt);
+    int i=0;
+    for(i; i<58; i++)
+    {
+        if(!strcmp(OPTAB[i].mnemonic,temp))
+        {
+            isOpt=1;
+            break;
+        }
+    }
+    if(isOpt==0)
+    {
+        free(temp);
+        return 0;
+    } 
+    else
+    {
+        format_size=OPTAB[i].format;
+        if(hasPlus) format_size+=1;
+        free(temp);
+        return format_size;
+    }
+}
+
 int findLabel(char label[])
 {
     for(int i=0; i<symIndex; i++)
@@ -245,6 +335,17 @@ int main(int argc, char* argv[])
                         strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
                         sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
                         symIndex++;
+                        int add_size=findOperator(temp[1]);
+                        if(add_size==0)
+                        {
+                            currentLoc+=notOperator(temp[1], temp[2]);
+
+                        }
+                        else
+                        {
+                            currentLoc+=add_size;
+                        }
+                        
                     }
                 }
 
