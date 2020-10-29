@@ -4,6 +4,7 @@
 #define BUF_LEN 256
 #define MAX_LEN 256
 #define VAL_LEN 10
+#define OPTAB_LEN 59
 
 int symIndex=0;
 
@@ -14,13 +15,13 @@ typedef struct symbol{
     char address[VAL_LEN];
 } symbol;
 
-// typedef struct intermediate{
+// typedef struct interm{
 //     char loc[VAL_LEN];
 //     char label[VAL_LEN];
 //     char opt[VAL_LEN];
 //     char operand[VAL_LEN];
 //     char comment[32];
-// } intermediate;
+// } interm;
 
 typedef struct opt
 {
@@ -133,7 +134,6 @@ int notopt(char opt[], char opr[])
         {
             return 1;
         }
-        return -1;
     }
     else if(!strcmp(opt,"BASE"))
     {
@@ -162,7 +162,7 @@ int findOpt(char opt[])
     }
     else strcpy(temp, opt);
     int i=0;
-    for(i; i<58; i++)
+    for(i; i<OPTAB_LEN; i++)
     {
         if(!strcmp(OPTAB[i].mnemonic,temp))
         {
@@ -194,11 +194,12 @@ int findLabel(char label[])
     return 0;
 }
 
-void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc)
+void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc, int line)
 {
     int size_real=size;
     char locstr[VAL_LEN];
     int isNoLoc=0;
+    int isEnd=0;
     sprintf(locstr, "%04x", loc);
     if(hasComment) size_real=size-1;
     for(int k=0; k<size; k++)
@@ -206,6 +207,7 @@ void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, in
         if(!strcmp(temp[k],"BASE")) isNoLoc=1;
         if(!strcmp(temp[k],"END")) isNoLoc=1;
     }
+    fprintf(fpw,"%d ",line);
     if(isNoLoc) fprintf(fpw, "   ");
     else fprintf(fpw, "%s    ", locstr);
     if(size_real==3)
@@ -230,8 +232,14 @@ void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, in
     }
 }
 
-
-
+void printSYMTAB(FILE* fpw, int symIndex)
+{
+    fprintf(fpw, "SYMBOL\n");
+    for(int i=0; i<symIndex; i++)
+    {
+        fprintf(fpw,"%s %s\n", SYMBOL_TABLE[i].statement, SYMBOL_TABLE[i].address);
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -272,27 +280,29 @@ int main(int argc, char* argv[])
         }
         if(buf[0]=='.')
         {
-            fprintf(fpw, "  %s\n", buf);
+            fprintf(fpw, "%d  %s", currentLine, buf);
+            currentLine++;
+            continue;
         }
         else
         {
             //parsing
             char* ptr;
             char temp[3][10];
-            ptr=strtok(buf, " \t");
+            ptr=strtok(buf, " \t\n");
             int hasComment=0;
 
             while(ptr != NULL)
             {
                 if(ptr[0]=='.')
                 {
-                    strcat(ptr,strtok(NULL, ""));
+                    strcat(ptr,strtok(NULL, "\n"));
                     strcpy(temp[i++],ptr);
                     hasComment=1;
                     break;
                 }
                 strcpy(temp[i++],ptr);
-                ptr=strtok(NULL, " \t");
+                ptr=strtok(NULL, " \t\n");
                 
             }
             
@@ -355,7 +365,9 @@ int main(int argc, char* argv[])
                 if(size_real==2)
                 {
                     int add_size=findOpt(temp[0]);
-                    if(!strcmp(temp[1],"BASE")) add_size=0;
+                    if(!strcmp(temp[0],"BASE")) add_size=0;
+                    if(!strcmp(temp[0],"END")) add_size=0;
+                    if(add_size==-1) exit(1);
                     currentLoc+=add_size;
                 }
                 if(size_real==1)
@@ -365,10 +377,11 @@ int main(int argc, char* argv[])
                 }
             }
             isNotStart=1;
-            writeImmediateFile(fpw, hasComment, temp, i, tempLoc);
+            writeImmediateFile(fpw, hasComment, temp, i, tempLoc, currentLine);
         }
         currentLine++;
     }
+    printSYMTAB(fpw, symIndex);
     fclose(fpw);
     fclose(fpr);
     //pass2
