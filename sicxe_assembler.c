@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #define BUF_LEN 256
 #define MAX_LEN 256
 #define VAL_LEN 10
 #define OPTAB_LEN 59
+#define REGTAB_LEN 9
 
 int symIndex=0;
 
@@ -41,6 +43,24 @@ typedef struct opt
     int format;
     int opcode;
 } opt;
+
+typedef struct reg
+{
+    char r[3];
+    int num;
+} reg;
+
+reg REGTAB[]={
+    {"A", 0},
+    {"X", 1},
+    {"L", 2},
+    {"B", 3},
+    {"S", 4},
+    {"T", 5},
+    {"F", 6},
+    {"PC", 8},
+    {"SW", 9}
+};
 
 opt OPTAB[]={
     {"ADD",3,0x18},
@@ -192,6 +212,71 @@ int findOpt(char opt[])
         if(hasPlus) format_size+=1;
         return format_size;
     }
+}
+
+int isOprAllReg(char opr[])
+{
+    int isReg=0;
+    char* ptr=strtok(opr," ,");
+    while(ptr!=NULL)
+    {
+        isReg=0;
+        for(int k=0; k<REGTAB_LEN; k++)
+        {
+            if(!strcmp(ptr,REGTAB[k].r))
+            {
+                isReg=1;
+                break;
+            }
+        }
+        if(isReg==0) return 0;
+        else strtok(NULL, " ,");
+    }
+    return 1;
+}
+
+int makeOpcode(char opt[], char opr[])
+{
+    int len=strlen(opt);
+    char* temp=(char*)malloc(sizeof(char)*len);
+    int isOpt=0;
+    int hasPlus=0;
+    int coef=0;
+    int opcode=0;
+    if(opt[0]=='+')
+    {
+        int j=1;
+        for(j; j<len; j++) temp[j-1]=opt[j];
+        hasPlus=1;
+        temp[j-1]='\0';
+    }
+    else strcpy(temp, opt);
+    int isReg=0;
+    if(opr[0]=='#') coef=1;
+    else if(opr[0]=='@') coef=2;
+    else
+    {
+        isReg=isOprAllReg(opr);
+        if(isReg) coef=0;
+        else coef=3;
+    }
+    
+    int i=0;
+    for(i; i<OPTAB_LEN; i++)
+    {
+        if(!strcmp(OPTAB[i].mnemonic,temp))
+        {
+            isOpt=1;
+            break;
+        }
+    }
+    if(isOpt)
+    {
+        opcode=strtol(OPTAB[i].opcode, NULL, 16);
+        opcode+=coef;
+        return opcode;
+    } 
+    else return -1;
 }
 
 int findLabel(char label[])
@@ -401,7 +486,7 @@ int main(int argc, char* argv[])
     fpw2=fopen(filename2, "w");
     symbol SYMTAB[MAX_LEN];
     listing LISTING[MAX_LEN];
-    int interLen=0;
+    int listLen=0;
     int symLen=0;
     while(fgets(buf, BUF_LEN, fpr2)!=NULL)
     {
@@ -445,20 +530,74 @@ int main(int argc, char* argv[])
             int size_real=i-1;
             if(size_real==4)
             {
-                strcpy(LISTING[i].loc, temp[0]);
-                strcpy(LISTING[i].label, temp[1]);
-                strcpy(LISTING[i].opt, temp[2]);
-                strcpy(LISTING[i].operand, temp[3]);
-                if(hasComment) strcpy(LISTING[i].comment, temp[4]);
+                strcpy(LISTING[listLen].loc, temp[0]);
+                strcpy(LISTING[listLen].label, temp[1]);
+                strcpy(LISTING[listLen].opt, temp[2]);
+                strcpy(LISTING[listLen].operand, temp[3]);
+                if(hasComment) strcpy(LISTING[listLen].comment, temp[4]);
             }
             else if(size_real==3)
             {
-
-
-                if(hasComment) strcpy(LISTING[i].comment, temp[3]);
+                if(isdigit(temp[0])) //loc present
+                {
+                    strcpy(LISTING[listLen].loc, temp[0]);
+                    strcpy(LISTING[listLen].label, "");
+                    strcpy(LISTING[listLen].opt, temp[1]);
+                    strcpy(LISTING[listLen].operand, temp[2]);
+                }
+                else // loc miss
+                {
+                    strcpy(LISTING[listLen].loc, "");
+                    strcpy(LISTING[listLen].label, temp[0]);
+                    strcpy(LISTING[listLen].opt, temp[1]);
+                    strcpy(LISTING[listLen].operand, temp[2]);
+                }
+                if(hasComment) strcpy(LISTING[listLen].comment, temp[3]);
             }
+            else if(size_real==2)
+            {
+                if(isdigit(temp[0])) //loc present
+                {
+                    strcpy(LISTING[listLen].loc, temp[0]);
+                    strcpy(LISTING[listLen].label, "");
+                    strcpy(LISTING[listLen].opt, temp[1]);
+                    strcpy(LISTING[listLen].operand, "");
+                }
+                else // loc miss
+                {
+                    strcpy(LISTING[listLen].loc, "");
+                    strcpy(LISTING[listLen].label, "");
+                    strcpy(LISTING[listLen].opt, temp[0]);
+                    strcpy(LISTING[listLen].operand, temp[1]);
+                }
+                if(hasComment) strcpy(LISTING[listLen].comment, temp[2]);
+            }
+            strcpy(LISTING[listLen].objcode, "");
+            listLen++;
         }
     }
+    //LISTING - listLen, SYMTAB - symLen
+    //make object code of each line
     
+    for(int index=0; index<listLen; index++)
+    {
+        if(strcmp(LISTING[index].opt, "START")==0) continue;
+        else
+        {
+            //opcode making
+            int opcode;
+            opcode=makeOpcode(LISTING[index].opt, LISTING[index].operand);
+            if(opcode == -1)
+            {
+
+            }
+            else
+            {
+                
+            }
+            
+            //
+        }
+    }
     return 0;
 }
