@@ -127,8 +127,6 @@ opt OPTAB[]={
 
 symbol SYMBOL_TABLE[MAX_LEN];
 
-//intermediate INTERMEDIATE_DATA[MAX_LEN];
-
 int notopt(char opt[], char opr[])
 {
 
@@ -335,6 +333,16 @@ void printSYMTAB(FILE* fpw, int symIndex)
     {
         fprintf(fpw,"%s %s\n", SYMBOL_TABLE[i].statement, SYMBOL_TABLE[i].address);
     }
+}
+
+int getSymbolAddr(symbol table[] , int table_size, char label[])
+{
+    int i=0;
+    for(i; i<table_size; i++)
+    {
+        if(!strcmp(table[i].statement, label)) break;
+    }
+    return atoi(table[i].address);
 }
 
 int main(int argc, char* argv[])
@@ -578,7 +586,7 @@ int main(int argc, char* argv[])
     }
     //LISTING - listLen, SYMTAB - symLen
     //make object code of each line
-    
+    int baseaddr=0;
     for(int index=0; index<listLen; index++)
     {
         if(strcmp(LISTING[index].opt, "START")==0) continue;
@@ -589,11 +597,60 @@ int main(int argc, char* argv[])
             opcode=makeOpcode(LISTING[index].opt, LISTING[index].operand);
             if(opcode == -1)
             {
+                // make all of object code
+                if(!strcmp(LISTING[index].opt, "RESW"));
+                else if(!strcmp(LISTING[index].opt, "RESB"));
+                else if(!strcmp(LISTING[index].opt, "END"))
+                {
+                    
+                }
+                else if(!strcmp(LISTING[index].opt, "BASE"))
+                {
+                    
+                }
+                else if(!strcmp(LISTING[index].opt, "WORD"))
+                {
+                    
+                }
+                else if(!strcmp(LISTING[index].opt, "BYTE"))
+                {
+                    if(LISTING[index].operand[0]=='C')
+                    {
+                        char temp[VAL_LEN]="";
+                        char temp2[VAL_LEN]="";
+                        int asciitemp;
+                        for(int m=1; m<strlen(LISTING[index].operand); m++)
+                        {
+                            if(LISTING[index].operand[m]!='\'')
+                            {
+                                asciitemp=LISTING[index].operand[m];
+                                sprintf(temp2, "%02x", asciitemp);
+                                strcat(temp,temp2);
+                            }
+                        }
+                        strcpy(LISTING[index].objcode, temp);
+                    }
+                    else if(LISTING[index].operand[0]=='X')
+                    {
+                        char temp3[VAL_LEN]="";
+                        int temp_index=0;
+                        for(int m=1; m<strlen(LISTING[index].operand); m++)
+                        {
+                            if(LISTING[index].operand[m]!='\'')
+                            {
+                                temp3[temp_index++]=LISTING[index].operand[m];
+                            }
+                            temp3[temp_index]='\0';
+                        }
 
+                    }
+
+                }
             }
             else
             {
-                
+                //operator
+
             }
             
             //
