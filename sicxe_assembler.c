@@ -289,13 +289,22 @@ int findLabel(char label[])
     return 0;
 }
 
+int getRegNum(char ch[])
+{
+    for(int i=0; i<REGTAB_LEN; i++)
+    {
+        if(!strcmp(REGTAB[i].r, ch)) return REGTAB[i].num;
+    }
+    return -1;
+}
+
 void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc)
 {
     int size_real=size;
     char locstr[VAL_LEN];
     int isNoLoc=0;
     int isEnd=0;
-    sprintf(locstr, "%04x", loc);
+    sprintf(locstr, "%04X", loc);
     if(hasComment) size_real=size-1;
     for(int k=0; k<size; k++)
     {
@@ -342,7 +351,7 @@ int getSymbolAddr(symbol table[] , int table_size, char label[])
     {
         if(!strcmp(table[i].statement, label)) break;
     }
-    return atoi(table[i].address);
+    return strtol(table[i].address, NULL, 16);
 }
 
 int main(int argc, char* argv[])
@@ -384,7 +393,7 @@ int main(int argc, char* argv[])
         }
         if(buf[0]=='.')
         {
-            fprintf(fpw, "% %s", buf);
+            fprintf(fpw, "%s", buf);
             continue;
         }
         else
@@ -450,7 +459,7 @@ int main(int argc, char* argv[])
                     else
                     {
                         strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
-                        if(strcmp(temp[1],"BASE")!=0 && strcmp(temp[1],"END")!=0) sprintf(SYMBOL_TABLE[symIndex].address, "%04x", currentLoc);
+                        if(strcmp(temp[1],"BASE")!=0 && strcmp(temp[1],"END")!=0) sprintf(SYMBOL_TABLE[symIndex].address, "%04X", currentLoc);
                         symIndex++;
                         int add_size=findOpt(temp[1]);
                         if(add_size==-1)
@@ -587,9 +596,14 @@ int main(int argc, char* argv[])
     //LISTING - listLen, SYMTAB - symLen
     //make object code of each line
     int baseaddr=0;
+    int startaddr=0;
     for(int index=0; index<listLen; index++)
     {
-        if(strcmp(LISTING[index].opt, "START")==0) continue;
+        if(strcmp(LISTING[index].opt, "START")==0) 
+        {
+            startaddr=strtol(LISTING[index].operand, NULL, 16);
+            continue;
+        }
         else
         {
             //opcode making
@@ -600,17 +614,15 @@ int main(int argc, char* argv[])
                 // make all of object code
                 if(!strcmp(LISTING[index].opt, "RESW"));
                 else if(!strcmp(LISTING[index].opt, "RESB"));
-                else if(!strcmp(LISTING[index].opt, "END"))
-                {
-                    
-                }
+                else if(!strcmp(LISTING[index].opt, "END"));
                 else if(!strcmp(LISTING[index].opt, "BASE"))
                 {
-                    
+                    baseaddr=getSymbolAddr(SYMTAB, symLen, LISTING[index].label);
+                    continue;
                 }
                 else if(!strcmp(LISTING[index].opt, "WORD"))
                 {
-                    
+                    sprintf(LISTING[index].objcode, "%06X", strtol(LISTING[index].operand,NULL,16));
                 }
                 else if(!strcmp(LISTING[index].opt, "BYTE"))
                 {
@@ -624,7 +636,7 @@ int main(int argc, char* argv[])
                             if(LISTING[index].operand[m]!='\'')
                             {
                                 asciitemp=LISTING[index].operand[m];
-                                sprintf(temp2, "%02x", asciitemp);
+                                sprintf(temp2, "%02X", asciitemp);
                                 strcat(temp,temp2);
                             }
                         }
@@ -642,14 +654,44 @@ int main(int argc, char* argv[])
                             }
                             temp3[temp_index]='\0';
                         }
-
+                        strcpy(LISTING[index].objcode, temp3);
                     }
-
+                    else
+                    {
+                        sprintf(LISTING[index].objcode, "%02X", strtol(LISTING[index].operand,NULL,16));
+                    }
                 }
             }
             else
             {
                 //operator
+                int format=findOpt(LISTING[index].opt);
+                int isAllReg=isOprAllReg(LISTING[index].operand);
+                if(isAllReg)
+                {
+                    char* reg=strtok(LISTING[index].operand, " ,");
+                    int q=0;
+                    char temp4[VAL_LEN]="";
+                    char temp5[VAL_LEN]="";
+                    while(reg!=NULL)
+                    {
+                        int num=getRegNum(reg);
+                        if(num!=-1)
+                        {
+                            sprintf(temp4,"%X",num);
+                            strcat(temp5,temp4);
+                        }
+                        q++;
+                        reg=strtok(NULL, " ,");
+                    }
+                    if(q<2) strcat(temp5,"0");
+                    sprintf(LISTING[index].objcode, "%02X", opcode);
+                    strcat(LISTING[index].objcode,temp5);
+                }
+                else
+                {
+                    int loc=strtol(LISTING[index].loc, NULL, 16);
+                }
 
             }
             
