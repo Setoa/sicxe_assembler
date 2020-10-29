@@ -172,14 +172,12 @@ int findOpt(char opt[])
     }
     if(isOpt==0)
     {
-        //free(temp);
         return -1;
     } 
     else
     {
         format_size=OPTAB[i].format;
         if(hasPlus) format_size+=1;
-        //free(temp);
         return format_size;
     }
 }
@@ -243,12 +241,10 @@ int main(int argc, char* argv[])
     char filename[32];
     int isFirstLine=1;
     int currentLine=0;
-
+    int tempLoc;
     int interIndex=0;
     int currentLoc=0; //this is decimal, need to convert to hax
     int isNotStart=0;
-    printf("%d", argc);
-    printf("%s", argv[1]);
     if(argc <= 1)
     {
         printf("No input.\n");
@@ -268,7 +264,7 @@ int main(int argc, char* argv[])
     while(fgets(buf, BUF_LEN, fpr)!=NULL)
     {
         int i=0;
-
+        tempLoc=currentLoc;
         if(strlen(buf)==0) 
         {
             currentLine++;
@@ -322,10 +318,11 @@ int main(int argc, char* argv[])
                     isNotStart=1;
                 }
                 isFirstLine=0;
+                tempLoc=currentLoc;
             }
             if(isFirstLine==0 && isNotStart==1)
             {
-                isNotStart=1;
+
                 int size_real=i;
                 if(hasComment) size_real=i-1;
                 int isLabelSymbol=findLabel(temp[0]);
@@ -367,8 +364,8 @@ int main(int argc, char* argv[])
                     currentLoc+=add_size;
                 }
             }
-            
-            writeImmediateFile(fpw, hasComment, temp, i, currentLoc);
+            isNotStart=1;
+            writeImmediateFile(fpw, hasComment, temp, i, tempLoc);
         }
         currentLine++;
     }

@@ -1,0 +1,103 @@
+0000    COPY START  0
+
+0000    FIRST STL  RETADR
+
+0003       LDB  #LENGTH
+
+      BASE  LENGTH
+
+0005    CLOOP +JSUB  RDREC
+
+0009       LDA  LENGTH
+
+000c       COMP  #0
+
+000f       JEQ  ENDFIL
+
+0012       +JSUB  WRREC
+
+0016       J  CLOOP
+
+0019    ENDFIL LDA  EOF
+
+001c       STA  BUFFER
+
+001f       LDA  #3
+
+0022       STA  LENGTH
+
+0025       +JSUB  WRREC
+
+0029       J  @RETADR
+
+002c    EOF BYTE  C'EOF'
+
+0030    RETADR RESW  1
+
+0033    LENGTH RESW  1
+
+0036    BUFFER RESB  4096
+
+  .
+
+  .	SUBROUTINE
+
+  .
+
+1036    RDREC CLEAR  X
+
+1038       CLEAR  A
+
+103a       CLEAR  S
+
+103c       +LDT  #4096
+
+1040    RLOOP TD  INPUT
+
+1043       JEQ  RLOOP
+
+1046       RD  INPUT
+
+1049       COMPR  A,S
+
+104b       JEQ  EXIT
+
+104e       STCH  BUFFER,X
+
+1051       TIXR  T
+
+1053       JLT  RLOOP
+
+1056    EXIT STX  LENGTH
+
+1059       RSUB
+  
+1058    INPUT BYTE  X'F1'
+
+  .
+
+  .	SUBROUTINE
+
+  .
+
+1059    WRREC CLEAR  X
+
+105b       LDT  LENGTH
+
+105e    WLOOP TD  OUTPUT
+
+1061       JEQ  WLOOP
+
+1064       LDCH  BUFFER,X
+
+1067       WD  OUTPUT
+
+1066       TIXR  T
+
+1068       JLT  WLOOP
+
+106b       RSUB
+  
+106a    OUTPUT BYTE  X'05'
+
+      END  FIRST
