@@ -15,13 +15,25 @@ typedef struct symbol{
     char address[VAL_LEN];
 } symbol;
 
-// typedef struct interm{
-//     char loc[VAL_LEN];
-//     char label[VAL_LEN];
-//     char opt[VAL_LEN];
-//     char operand[VAL_LEN];
-//     char comment[32];
-// } interm;
+typedef struct interm{
+
+    char loc[VAL_LEN];
+    char label[VAL_LEN];
+    char opt[VAL_LEN];
+    char operand[VAL_LEN];
+    char comment[32];
+} interm;
+
+typedef struct listing
+{
+    char loc[VAL_LEN];
+    char label[VAL_LEN];
+    char opt[VAL_LEN];
+    char operand[VAL_LEN];
+    char comment[32];
+    char objcode[VAL_LEN];
+} listing;
+
 
 typedef struct opt
 {
@@ -194,7 +206,7 @@ int findLabel(char label[])
     return 0;
 }
 
-void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc, int line)
+void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc)
 {
     int size_real=size;
     char locstr[VAL_LEN];
@@ -207,7 +219,6 @@ void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, in
         if(!strcmp(temp[k],"BASE")) isNoLoc=1;
         if(!strcmp(temp[k],"END")) isNoLoc=1;
     }
-    fprintf(fpw,"%d ",line);
     if(isNoLoc) fprintf(fpw, "   ");
     else fprintf(fpw, "%s    ", locstr);
     if(size_real==3)
@@ -247,19 +258,20 @@ int main(int argc, char* argv[])
     FILE* fpw;
     char buf[BUF_LEN]={ 0 };
     char filename[32];
+    char filename2[32];
     int isFirstLine=1;
-    int currentLine=0;
     int tempLoc;
     int interIndex=0;
     int currentLoc=0; //this is decimal, need to convert to hax
     int isNotStart=0;
-    if(argc <= 1)
+    if(argc < 3)
     {
         printf("No input.\n");
         exit(1);
     }
 
     strcpy(filename, argv[1]);
+    strcpy(filename2, argv[2]);
     fpr=fopen(filename, "r");
     fpw=fopen("intermediate", "w");
     if(fpr==NULL)
@@ -275,20 +287,18 @@ int main(int argc, char* argv[])
         tempLoc=currentLoc;
         if(strlen(buf)==0) 
         {
-            currentLine++;
             continue;
         }
         if(buf[0]=='.')
         {
-            fprintf(fpw, "%d  %s", currentLine, buf);
-            currentLine++;
+            fprintf(fpw, "% %s", buf);
             continue;
         }
         else
         {
             //parsing
             char* ptr;
-            char temp[3][10];
+            char temp[4][VAL_LEN];
             ptr=strtok(buf, " \t\n");
             int hasComment=0;
 
@@ -377,14 +387,78 @@ int main(int argc, char* argv[])
                 }
             }
             isNotStart=1;
-            writeImmediateFile(fpw, hasComment, temp, i, tempLoc, currentLine);
+            writeImmediateFile(fpw, hasComment, temp, i, tempLoc);
         }
-        currentLine++;
     }
     printSYMTAB(fpw, symIndex);
     fclose(fpw);
     fclose(fpr);
     //pass2
+    
+    FILE* fpr2;
+    FILE* fpw2;
+    fpr2=fopen("intermediate", "r");
+    fpw2=fopen(filename2, "w");
+    symbol SYMTAB[MAX_LEN];
+    listing LISTING[MAX_LEN];
+    int interLen=0;
+    int symLen=0;
+    while(fgets(buf, BUF_LEN, fpr2)!=NULL)
+    {
+        int i=0;
+        int isSymbol=0;
+        if(strlen(buf)==0) continue;
+        char* ptr;
+        char temp[6][VAL_LEN];
+        ptr=strtok(buf, " \t\n");
+        if(!strcmp(ptr, "SYMBOL"))
+        {
+            isSymbol=1;
+            continue;
+        }
+        if(isSymbol)
+        {
+            while(ptr!=NULL)
+            {
+                strcpy(temp[i++],ptr);
+                strtok(NULL, " \t\n");
+            }
+            strcpy(SYMTAB[symLen].statement,temp[0]);
+            strcpy(SYMTAB[symLen].address,temp[1]);
+            symLen++;
+        }
+        else
+        {
+            int hasComment=0;
+            while(ptr!=NULL)
+            {
+                if(ptr[0]=='.')
+                {
+                    strcat(ptr, strtok(NULL, "\n"));
+                    strcpy(temp[i++], ptr);
+                    hasComment=1;
+                    break;
+                }
+                strcpy(temp[i++], ptr);
+                ptr=strtok(NULL, " \t\n");
+            }
+            int size_real=i-1;
+            if(size_real==4)
+            {
+                strcpy(LISTING[i].loc, temp[0]);
+                strcpy(LISTING[i].label, temp[1]);
+                strcpy(LISTING[i].opt, temp[2]);
+                strcpy(LISTING[i].operand, temp[3]);
+                if(hasComment) strcpy(LISTING[i].comment, temp[4]);
+            }
+            else if(size_real==3)
+            {
 
+
+                if(hasComment) strcpy(LISTING[i].comment, temp[3]);
+            }
+        }
+    }
+    
     return 0;
 }
