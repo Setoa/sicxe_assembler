@@ -325,27 +325,27 @@ void printListingFile(FILE* fpw, listing LISTING[], int len)
     }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     FILE* fpr;
     FILE* fpw;
     char buf[BUF_LEN] = { 0 };
-    // char filename[32];
-    // char filename2[32];
+    char filename[32];
+    char filename2[32];
+	char filename3[32];
     int isFirstLine = 1;
     int tempLoc;
     int interIndex = 0;
     int currentLoc = 0; //this is decimal, need to convert to hax
     int isNotStart = 0;
-    /*
-    if (argc < 3)
+    if (argc < 4)
     {
         printf("No input.\n");
         exit(1);
     }
-    */
-    // strcpy(filename, argv[1]);
-    // strcpy(filename2, argv[2]);
+    strcpy(filename, argv[1]);
+    strcpy(filename2, argv[2]);
+	strcpy(filename3, argv[3]);
     fpr = fopen("srccode.asm", "r");
     fpw = fopen("intermediate", "w");
     if (fpr == NULL)
@@ -474,9 +474,8 @@ int main()
     FILE* fpw3;
 
     fpr2 = fopen("intermediate", "r");
-    //fpw2 = fopen(filename2, "w");
-    fpw2 = fopen("listing.lst", "w");
-    fpw3 = fopen("object.obj", "w");
+    fpw2 = fopen(filename2, "w");
+    fpw3 = fopen(filename3, "w");
     symbol SYMTAB[MAX_LEN];
     listing LISTING[MAX_LEN];
     int listLen = 0;
