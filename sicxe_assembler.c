@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,23 +9,12 @@
 #define OPTAB_LEN 59
 #define REGTAB_LEN 9
 
-int symIndex=0;
+int symIndex = 0;
 
-int LOCCTR[MAX_LEN];
-
-typedef struct symbol{
+typedef struct symbol {
     char statement[VAL_LEN];
     char address[VAL_LEN];
 } symbol;
-
-typedef struct interm{
-
-    char loc[VAL_LEN];
-    char label[VAL_LEN];
-    char opt[VAL_LEN];
-    char operand[VAL_LEN];
-    char comment[32];
-} interm;
 
 typedef struct listing
 {
@@ -34,8 +24,8 @@ typedef struct listing
     char operand[VAL_LEN];
     char comment[32];
     char objcode[VAL_LEN];
+    int isComment = 0;
 } listing;
-
 
 typedef struct opt
 {
@@ -50,7 +40,7 @@ typedef struct reg
     int num;
 } reg;
 
-reg REGTAB[]={
+reg REGTAB[] = {
     {"A", 0},
     {"X", 1},
     {"L", 2},
@@ -62,7 +52,7 @@ reg REGTAB[]={
     {"SW", 9}
 };
 
-opt OPTAB[]={
+opt OPTAB[] = {
     {"ADD",3,0x18},
     {"ADDF",3,0x58},
     {"ADDR",2,0x90},
@@ -124,39 +114,38 @@ opt OPTAB[]={
     {"WD",3,0xDC}
 };
 
-
 symbol SYMBOL_TABLE[MAX_LEN];
 
 int notopt(char opt[], char opr[])
 {
 
-    if(!strcmp(opt,"WORD"))
+    if (!strcmp(opt, "WORD"))
     {
         return 3;
     }
-    else if(!strcmp(opt,"RESW"))
+    else if (!strcmp(opt, "RESW"))
     {
-        return 3*atoi(opr);
+        return 3 * atoi(opr);
     }
-    else if(!strcmp(opt,"RESB"))
+    else if (!strcmp(opt, "RESB"))
     {
         return atoi(opr);
     }
-    else if(!strcmp(opt,"BYTE"))
+    else if (!strcmp(opt, "BYTE"))
     {
-        if(opr[0]=='C')
+        if (opr[0] == 'C')
         {
-            int charcount=0;
-            for(int i=1; i<strlen(opr); i++)
+            int charcount = 0;
+            for (int i = 1; i < strlen(opr); i++)
             {
-                if(opr[i]!='\'')
+                if (opr[i] != '\'')
                 {
                     charcount++;
                 }
             }
             return charcount;
         }
-        else if(opr[0]=='X')
+        else if (opr[0] == 'X')
         {
             return 1;
         }
@@ -165,11 +154,11 @@ int notopt(char opt[], char opr[])
             return 1;
         }
     }
-    else if(!strcmp(opt,"BASE"))
+    else if (!strcmp(opt, "BASE"))
     {
         return 0;
     }
-    else if(!strcmp(opt,"END"))
+    else if (!strcmp(opt, "END"))
     {
         return 0;
     }
@@ -178,110 +167,82 @@ int notopt(char opt[], char opr[])
 
 int findOpt(char opt[])
 {
-    int len=strlen(opt);
-    char* temp=(char*)malloc(sizeof(char)*len);
-    int isOpt=0;
-    int hasPlus=0;
+    int len = strlen(opt);
+    char* temp = (char*)malloc(sizeof(char) * len);
+    int isOpt = 0;
+    int hasPlus = 0;
     int format_size;
-    if(opt[0]=='+')
+    if (opt[0] == '+')
     {
-        int j=1;
-        for(j; j<len; j++) temp[j-1]=opt[j];
-        hasPlus=1;
-        temp[j-1]='\0';
+        int j = 1;
+        for (j; j < len; j++) temp[j - 1] = opt[j];
+        hasPlus = 1;
+        temp[j - 1] = '\0';
     }
     else strcpy(temp, opt);
-    int i=0;
-    for(i; i<OPTAB_LEN; i++)
+    int i = 0;
+    for (i; i < OPTAB_LEN; i++)
     {
-        if(!strcmp(OPTAB[i].mnemonic,temp))
+        if (!strcmp(OPTAB[i].mnemonic, temp))
         {
-            isOpt=1;
+            isOpt = 1;
             break;
         }
     }
-    if(isOpt==0)
+    if (isOpt == 0)
     {
         return -1;
-    } 
+    }
     else
     {
-        format_size=OPTAB[i].format;
-        if(hasPlus) format_size+=1;
+        format_size = OPTAB[i].format;
+        if (hasPlus) format_size += 1;
         return format_size;
     }
 }
 
-int isOprAllReg(char opr[])
+int makeOpcode(char opt[], char opr[], int format)
 {
-    int isReg=0;
-    char* ptr=strtok(opr," ,");
-    while(ptr!=NULL)
+    int len = strlen(opt);
+    char* temp = (char*)malloc(sizeof(char) * len);
+    int isOpt = 0;
+    int hasPlus = 0;
+    int coef = 0;
+    int opcode = 0;
+    if (opt[0] == '+')
     {
-        isReg=0;
-        for(int k=0; k<REGTAB_LEN; k++)
-        {
-            if(!strcmp(ptr,REGTAB[k].r))
-            {
-                isReg=1;
-                break;
-            }
-        }
-        if(isReg==0) return 0;
-        else strtok(NULL, " ,");
-    }
-    return 1;
-}
-
-int makeOpcode(char opt[], char opr[])
-{
-    int len=strlen(opt);
-    char* temp=(char*)malloc(sizeof(char)*len);
-    int isOpt=0;
-    int hasPlus=0;
-    int coef=0;
-    int opcode=0;
-    if(opt[0]=='+')
-    {
-        int j=1;
-        for(j; j<len; j++) temp[j-1]=opt[j];
-        hasPlus=1;
-        temp[j-1]='\0';
+        int j = 1;
+        for (j; j < len; j++) temp[j - 1] = opt[j];
+        hasPlus = 1;
+        temp[j - 1] = '\0';
     }
     else strcpy(temp, opt);
-    int isReg=0;
-    if(opr[0]=='#') coef=1;
-    else if(opr[0]=='@') coef=2;
+    if (format == 1 || format == 2) coef = 0;
     else
     {
-        isReg=isOprAllReg(opr);
-        if(isReg) coef=0;
-        else coef=3;
+        if (opr[0] == '#') coef = 1;
+        else if (opr[0] == '@') coef = 2;
+        else coef = 3;
     }
-    
-    int i=0;
-    for(i; i<OPTAB_LEN; i++)
+
+    int i = 0;
+    for (i; i < OPTAB_LEN; i++)
     {
-        if(!strcmp(OPTAB[i].mnemonic,temp))
+        if (!strcmp(OPTAB[i].mnemonic, temp))
         {
-            isOpt=1;
             break;
         }
     }
-    if(isOpt)
-    {
-        opcode=strtol(OPTAB[i].opcode, NULL, 16);
-        opcode+=coef;
-        return opcode;
-    } 
-    else return -1;
+    opcode = OPTAB[i].opcode;
+    opcode += coef;
+    return opcode;
 }
 
 int findLabel(char label[])
 {
-    for(int i=0; i<symIndex; i++)
+    for (int i = 0; i < symIndex; i++)
     {
-        if(!strcmp(label, SYMBOL_TABLE[i].statement))
+        if (!strcmp(label, SYMBOL_TABLE[i].statement))
         {
             return 1;
         }
@@ -291,43 +252,43 @@ int findLabel(char label[])
 
 int getRegNum(char ch[])
 {
-    for(int i=0; i<REGTAB_LEN; i++)
+    for (int i = 0; i < REGTAB_LEN; i++)
     {
-        if(!strcmp(REGTAB[i].r, ch)) return REGTAB[i].num;
+        if (!strcmp(REGTAB[i].r, ch)) return REGTAB[i].num;
     }
     return -1;
 }
 
 void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, int loc)
 {
-    int size_real=size;
+    int size_real = size;
     char locstr[VAL_LEN];
-    int isNoLoc=0;
-    int isEnd=0;
+    int isNoLoc = 0;
+    int isEnd = 0;
     sprintf(locstr, "%04X", loc);
-    if(hasComment) size_real=size-1;
-    for(int k=0; k<size; k++)
+    if (hasComment) size_real = size - 1;
+    for (int k = 0; k < size; k++)
     {
-        if(!strcmp(temp[k],"BASE")) isNoLoc=1;
-        if(!strcmp(temp[k],"END")) isNoLoc=1;
+        if (!strcmp(temp[k], "BASE")) isNoLoc = 1;
+        if (!strcmp(temp[k], "END")) isNoLoc = 1;
     }
-    if(isNoLoc) fprintf(fpw, "   ");
+    if (isNoLoc) fprintf(fpw, "   ");
     else fprintf(fpw, "%s    ", locstr);
-    if(size_real==3)
+    if (size_real == 3)
     {
-        fprintf(fpw,"%s %s  %s", temp[0], temp[1], temp[2]);
+        fprintf(fpw, "%s %s  %s", temp[0], temp[1], temp[2]);
     }
-    else if(size_real==2)
+    else if (size_real == 2)
     {
-        fprintf(fpw,"   %s  %s", temp[0], temp[1]);
+        fprintf(fpw, "   %s  %s", temp[0], temp[1]);
     }
-    else if(size_real==1)
+    else if (size_real == 1)
     {
-        fprintf(fpw,"   %s  ", temp[0]);
+        fprintf(fpw, "   %s  ", temp[0]);
     }
-    if(hasComment)
+    if (hasComment)
     {
-        fprintf(fpw, "   %s\n",temp[size_real]);
+        fprintf(fpw, "   %s\n", temp[size_real]);
     }
     else
     {
@@ -338,60 +299,71 @@ void writeImmediateFile(FILE* fpw, int hasComment, char temp[][10], int size, in
 void printSYMTAB(FILE* fpw, int symIndex)
 {
     fprintf(fpw, "SYMBOL\n");
-    for(int i=0; i<symIndex; i++)
+    for (int i = 0; i < symIndex; i++)
     {
-        fprintf(fpw,"%s %s\n", SYMBOL_TABLE[i].statement, SYMBOL_TABLE[i].address);
+        fprintf(fpw, "%s %s\n", SYMBOL_TABLE[i].statement, SYMBOL_TABLE[i].address);
     }
 }
 
-int getSymbolAddr(symbol table[] , int table_size, char label[])
+int getSymbolAddr(symbol table[], int table_size, char label[])
 {
-    int i=0;
-    for(i; i<table_size; i++)
+    int i = 0;
+    for (i; i < table_size; i++)
     {
-        if(!strcmp(table[i].statement, label)) break;
+        if (!strcmp(table[i].statement, label)) break;
     }
-    return strtol(table[i].address, NULL, 16);
+    if (i == table_size) return -1;
+    else return strtol(table[i].address, NULL, 16);
 }
 
-int main(int argc, char* argv[])
+void printListingFile(FILE* fpw, listing LISTING[], int len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        if (LISTING[i].isComment == 1) fprintf(fpw, "  %s", LISTING[i].comment);
+        else fprintf(fpw, "%s %s  %s  %s  %s  %s\n", LISTING[i].loc, LISTING[i].label, LISTING[i].opt, LISTING[i].operand, LISTING[i].comment, LISTING[i].objcode);
+    }
+}
+
+int main()
 {
     FILE* fpr;
     FILE* fpw;
-    char buf[BUF_LEN]={ 0 };
-    char filename[32];
-    char filename2[32];
-    int isFirstLine=1;
+    char buf[BUF_LEN] = { 0 };
+    // char filename[32];
+    // char filename2[32];
+    int isFirstLine = 1;
     int tempLoc;
-    int interIndex=0;
-    int currentLoc=0; //this is decimal, need to convert to hax
-    int isNotStart=0;
-    if(argc < 3)
+    int interIndex = 0;
+    int currentLoc = 0; //this is decimal, need to convert to hax
+    int isNotStart = 0;
+    /*
+    if (argc < 3)
     {
         printf("No input.\n");
         exit(1);
     }
-
-    strcpy(filename, argv[1]);
-    strcpy(filename2, argv[2]);
-    fpr=fopen(filename, "r");
-    fpw=fopen("intermediate", "w");
-    if(fpr==NULL)
+    */
+    // strcpy(filename, argv[1]);
+    // strcpy(filename2, argv[2]);
+    fpr = fopen("srccode.asm", "r");
+    fpw = fopen("intermediate", "w");
+    if (fpr == NULL)
     {
         printf("Can't read input file");
         exit(1);
     }
 
     // pass 1
-    while(fgets(buf, BUF_LEN, fpr)!=NULL)
+    while (fgets(buf, BUF_LEN, fpr) != NULL)
     {
-        int i=0;
-        tempLoc=currentLoc;
-        if(strlen(buf)==0) 
+        int i = 0;
+        tempLoc = currentLoc;
+        if (strlen(buf) == 0)
         {
             continue;
         }
-        if(buf[0]=='.')
+        if (buf[0] == '.')
         {
             fprintf(fpw, "%s", buf);
             continue;
@@ -401,57 +373,57 @@ int main(int argc, char* argv[])
             //parsing
             char* ptr;
             char temp[4][VAL_LEN];
-            ptr=strtok(buf, " \t\n");
-            int hasComment=0;
+            ptr = strtok(buf, " \t\n");
+            int hasComment = 0;
 
-            while(ptr != NULL)
+            while (ptr != NULL)
             {
-                if(ptr[0]=='.')
+                if (ptr[0] == '.')
                 {
-                    strcat(ptr,strtok(NULL, "\n"));
-                    strcpy(temp[i++],ptr);
-                    hasComment=1;
+                    strcat(ptr, strtok(NULL, "\n"));
+                    strcpy(temp[i++], ptr);
+                    hasComment = 1;
                     break;
                 }
-                strcpy(temp[i++],ptr);
-                ptr=strtok(NULL, " \t\n");
-                
+                strcpy(temp[i++], ptr);
+                ptr = strtok(NULL, " \t\n");
+
             }
-            
-            if(isFirstLine)
+
+            if (isFirstLine)
             {
-                if(!strcmp(temp[0], "START"))
+                if (!strcmp(temp[0], "START"))
                 {
-                    currentLoc=atoi(temp[1]);
+                    currentLoc = strtol(temp[1], NULL, 16);
                     strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
-                    strcpy(SYMBOL_TABLE[symIndex].address, temp[1]);
+                    sprintf(SYMBOL_TABLE[symIndex].address, "%04X", currentLoc);
                     symIndex++;
                 }
-                else if(!strcmp(temp[1], "START"))
+                else if (!strcmp(temp[1], "START"))
                 {
-                    currentLoc=atoi(temp[2]);
+                    currentLoc = strtol(temp[2], NULL, 16);
                     strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
-                    strcpy(SYMBOL_TABLE[symIndex].address, temp[2]);
+                    sprintf(SYMBOL_TABLE[symIndex].address, "%04X", currentLoc);
                     symIndex++;
                 }
                 else
                 {
-                    currentLoc=0;
-                    isNotStart=1;
+                    currentLoc = 0;
+                    isNotStart = 1;
                 }
-                isFirstLine=0;
-                tempLoc=currentLoc;
+                isFirstLine = 0;
+                tempLoc = currentLoc;
             }
-            if(isFirstLine==0 && isNotStart==1)
+            if (isFirstLine == 0 && isNotStart == 1)
             {
 
-                int size_real=i;
-                if(hasComment) size_real=i-1;
-                int isLabelSymbol=findLabel(temp[0]);
-                
-                if(size_real==3)
+                int size_real = i;
+                if (hasComment) size_real = i - 1;
+                int isLabelSymbol = findLabel(temp[0]);
+
+                if (size_real == 3)
                 {
-                    if(isLabelSymbol)
+                    if (isLabelSymbol)
                     {
                         //error
                         exit(1);
@@ -459,36 +431,36 @@ int main(int argc, char* argv[])
                     else
                     {
                         strcpy(SYMBOL_TABLE[symIndex].statement, temp[0]);
-                        if(strcmp(temp[1],"BASE")!=0 && strcmp(temp[1],"END")!=0) sprintf(SYMBOL_TABLE[symIndex].address, "%04X", currentLoc);
+                        if (strcmp(temp[1], "BASE") != 0 && strcmp(temp[1], "END") != 0) sprintf(SYMBOL_TABLE[symIndex].address, "%04X", currentLoc);
                         symIndex++;
-                        int add_size=findOpt(temp[1]);
-                        if(add_size==-1)
+                        int add_size = findOpt(temp[1]);
+                        if (add_size == -1)
                         {
-                            currentLoc+=notopt(temp[1], temp[2]);
+                            currentLoc += notopt(temp[1], temp[2]);
                         }
                         else
                         {
-                            currentLoc+=add_size;
+                            currentLoc += add_size;
                         }
-                        
+
                     }
                 }
 
-                if(size_real==2)
+                if (size_real == 2)
                 {
-                    int add_size=findOpt(temp[0]);
-                    if(!strcmp(temp[0],"BASE")) add_size=0;
-                    if(!strcmp(temp[0],"END")) add_size=0;
-                    if(add_size==-1) exit(1);
-                    currentLoc+=add_size;
+                    int add_size = findOpt(temp[0]);
+                    if (!strcmp(temp[0], "BASE")) add_size = 0;
+                    if (!strcmp(temp[0], "END")) add_size = 0;
+                    if (add_size == -1) exit(1);
+                    currentLoc += add_size;
                 }
-                if(size_real==1)
+                if (size_real == 1)
                 {
-                    int add_size=findOpt(temp[0]);
-                    currentLoc+=add_size;
+                    int add_size = findOpt(temp[0]);
+                    currentLoc += add_size;
                 }
             }
-            isNotStart=1;
+            isNotStart = 1;
             writeImmediateFile(fpw, hasComment, temp, i, tempLoc);
         }
     }
@@ -496,66 +468,87 @@ int main(int argc, char* argv[])
     fclose(fpw);
     fclose(fpr);
     //pass2
-    
+
     FILE* fpr2;
     FILE* fpw2;
-    fpr2=fopen("intermediate", "r");
-    fpw2=fopen(filename2, "w");
+    FILE* fpw3;
+
+    fpr2 = fopen("intermediate", "r");
+    //fpw2 = fopen(filename2, "w");
+    fpw2 = fopen("listing.lst", "w");
+    fpw3 = fopen("object.obj", "w");
     symbol SYMTAB[MAX_LEN];
     listing LISTING[MAX_LEN];
-    int listLen=0;
-    int symLen=0;
-    while(fgets(buf, BUF_LEN, fpr2)!=NULL)
+    int listLen = 0;
+    int symLen = 0;
+    int isSymbol = 0;
+    int hasComment;
+    while (fgets(buf, BUF_LEN, fpr2) != NULL)
     {
-        int i=0;
-        int isSymbol=0;
-        if(strlen(buf)==0) continue;
+        int i = 0;
+
+        if (strlen(buf) == 0) continue;
         char* ptr;
         char temp[6][VAL_LEN];
-        ptr=strtok(buf, " \t\n");
-        if(!strcmp(ptr, "SYMBOL"))
+        if (buf[0] == '.')
         {
-            isSymbol=1;
+            strcpy(LISTING[listLen].loc, "");
+            strcpy(LISTING[listLen].label, "");
+            strcpy(LISTING[listLen].opt, "");
+            strcpy(LISTING[listLen].operand, "");
+            strcpy(LISTING[listLen].comment, buf);
+            strcpy(LISTING[listLen].objcode, "");
+            LISTING[listLen].isComment = 1;
+            listLen++;
             continue;
         }
-        if(isSymbol)
+        ptr = strtok(buf, " \t\n");
+        if (strcmp(ptr, "SYMBOL") == 0)
         {
-            while(ptr!=NULL)
+            isSymbol = 1;
+            continue;
+        }
+        if (isSymbol)
+        {
+            while (ptr != NULL)
             {
-                strcpy(temp[i++],ptr);
-                strtok(NULL, " \t\n");
+                strcpy(temp[i++], ptr);
+                ptr = strtok(NULL, " \t\n");
             }
-            strcpy(SYMTAB[symLen].statement,temp[0]);
-            strcpy(SYMTAB[symLen].address,temp[1]);
+            strcpy(SYMTAB[symLen].statement, temp[0]);
+            strcpy(SYMTAB[symLen].address, temp[1]);
             symLen++;
         }
         else
         {
-            int hasComment=0;
-            while(ptr!=NULL)
+            hasComment = 0;
+
+            while (ptr != NULL)
             {
-                if(ptr[0]=='.')
+                if (ptr[0] == '.')
                 {
                     strcat(ptr, strtok(NULL, "\n"));
                     strcpy(temp[i++], ptr);
-                    hasComment=1;
+                    hasComment = 1;
                     break;
                 }
                 strcpy(temp[i++], ptr);
-                ptr=strtok(NULL, " \t\n");
+                ptr = strtok(NULL, " \t\n");
             }
-            int size_real=i-1;
-            if(size_real==4)
+            int size_real = i;
+            if (hasComment) size_real -= 1;
+            if (size_real == 4)
             {
                 strcpy(LISTING[listLen].loc, temp[0]);
                 strcpy(LISTING[listLen].label, temp[1]);
                 strcpy(LISTING[listLen].opt, temp[2]);
                 strcpy(LISTING[listLen].operand, temp[3]);
-                if(hasComment) strcpy(LISTING[listLen].comment, temp[4]);
+                if (hasComment) strcpy(LISTING[listLen].comment, temp[4]);
+                else strcpy(LISTING[listLen].comment, "");
             }
-            else if(size_real==3)
+            else if (size_real == 3)
             {
-                if(isdigit(temp[0])) //loc present
+                if (isdigit(temp[0][0])) //loc present
                 {
                     strcpy(LISTING[listLen].loc, temp[0]);
                     strcpy(LISTING[listLen].label, "");
@@ -569,11 +562,12 @@ int main(int argc, char* argv[])
                     strcpy(LISTING[listLen].opt, temp[1]);
                     strcpy(LISTING[listLen].operand, temp[2]);
                 }
-                if(hasComment) strcpy(LISTING[listLen].comment, temp[3]);
+                if (hasComment) strcpy(LISTING[listLen].comment, temp[3]);
+                else strcpy(LISTING[listLen].comment, "");
             }
-            else if(size_real==2)
+            else if (size_real == 2)
             {
-                if(isdigit(temp[0])) //loc present
+                if (isdigit(temp[0][0])) //loc present
                 {
                     strcpy(LISTING[listLen].loc, temp[0]);
                     strcpy(LISTING[listLen].label, "");
@@ -587,7 +581,8 @@ int main(int argc, char* argv[])
                     strcpy(LISTING[listLen].opt, temp[0]);
                     strcpy(LISTING[listLen].operand, temp[1]);
                 }
-                if(hasComment) strcpy(LISTING[listLen].comment, temp[2]);
+                if (hasComment) strcpy(LISTING[listLen].comment, temp[2]);
+                else strcpy(LISTING[listLen].comment, "");
             }
             strcpy(LISTING[listLen].objcode, "");
             listLen++;
@@ -595,108 +590,261 @@ int main(int argc, char* argv[])
     }
     //LISTING - listLen, SYMTAB - symLen
     //make object code of each line
-    int baseaddr=0;
-    int startaddr=0;
-    for(int index=0; index<listLen; index++)
+    int baseaddr = -1;
+    int startaddr = 0;
+    for (int index = 0; index < listLen; index++)
     {
-        if(strcmp(LISTING[index].opt, "START")==0) 
+        if (strcmp(LISTING[index].opt, "START") == 0)
         {
-            startaddr=strtol(LISTING[index].operand, NULL, 16);
+            startaddr = strtol(LISTING[index].operand, NULL, 16);
             continue;
         }
         else
         {
             //opcode making
             int opcode;
-            opcode=makeOpcode(LISTING[index].opt, LISTING[index].operand);
-            if(opcode == -1)
+            int format = findOpt(LISTING[index].opt);
+            int flag;
+            if (format == -1)
             {
                 // make all of object code
-                if(!strcmp(LISTING[index].opt, "RESW"));
-                else if(!strcmp(LISTING[index].opt, "RESB"));
-                else if(!strcmp(LISTING[index].opt, "END"));
-                else if(!strcmp(LISTING[index].opt, "BASE"))
+                if (!strcmp(LISTING[index].opt, "RESW"));
+                else if (!strcmp(LISTING[index].opt, "RESB"));
+                else if (!strcmp(LISTING[index].opt, "END"))
                 {
-                    baseaddr=getSymbolAddr(SYMTAB, symLen, LISTING[index].label);
+
+                }
+                else if (!strcmp(LISTING[index].opt, "BASE"))
+                {
+                    baseaddr = getSymbolAddr(SYMTAB, symLen, LISTING[index].operand);
                     continue;
                 }
-                else if(!strcmp(LISTING[index].opt, "WORD"))
+                else if (!strcmp(LISTING[index].opt, "WORD"))
                 {
-                    sprintf(LISTING[index].objcode, "%06X", strtol(LISTING[index].operand,NULL,16));
+                    sprintf(LISTING[index].objcode, "%06X", atoi(LISTING[index].operand));
                 }
-                else if(!strcmp(LISTING[index].opt, "BYTE"))
+                else if (!strcmp(LISTING[index].opt, "BYTE"))
                 {
-                    if(LISTING[index].operand[0]=='C')
+                    if (LISTING[index].operand[0] == 'C')
                     {
-                        char temp[VAL_LEN]="";
-                        char temp2[VAL_LEN]="";
+                        char temp[VAL_LEN] = "";
+                        char temp2[VAL_LEN] = "";
                         int asciitemp;
-                        for(int m=1; m<strlen(LISTING[index].operand); m++)
+                        for (int m = 1; m < strlen(LISTING[index].operand); m++)
                         {
-                            if(LISTING[index].operand[m]!='\'')
+                            if (LISTING[index].operand[m] != '\'')
                             {
-                                asciitemp=LISTING[index].operand[m];
+                                asciitemp = LISTING[index].operand[m];
                                 sprintf(temp2, "%02X", asciitemp);
-                                strcat(temp,temp2);
+                                strcat(temp, temp2);
                             }
                         }
                         strcpy(LISTING[index].objcode, temp);
                     }
-                    else if(LISTING[index].operand[0]=='X')
+                    else if (LISTING[index].operand[0] == 'X')
                     {
-                        char temp3[VAL_LEN]="";
-                        int temp_index=0;
-                        for(int m=1; m<strlen(LISTING[index].operand); m++)
+                        char temp3[VAL_LEN] = "";
+                        int temp_index = 0;
+                        for (int m = 1; m < strlen(LISTING[index].operand); m++)
                         {
-                            if(LISTING[index].operand[m]!='\'')
+                            if (LISTING[index].operand[m] != '\'')
                             {
-                                temp3[temp_index++]=LISTING[index].operand[m];
+                                temp3[temp_index++] = LISTING[index].operand[m];
                             }
-                            temp3[temp_index]='\0';
+                            temp3[temp_index] = '\0';
                         }
                         strcpy(LISTING[index].objcode, temp3);
                     }
                     else
                     {
-                        sprintf(LISTING[index].objcode, "%02X", strtol(LISTING[index].operand,NULL,16));
+                        sprintf(LISTING[index].objcode, "%02X", atoi(LISTING[index].operand));
                     }
                 }
             }
             else
             {
                 //operator
-                int format=findOpt(LISTING[index].opt);
-                int isAllReg=isOprAllReg(LISTING[index].operand);
-                if(isAllReg)
+                opcode = makeOpcode(LISTING[index].opt, LISTING[index].operand, format);
+                if (format == 1)
                 {
-                    char* reg=strtok(LISTING[index].operand, " ,");
-                    int q=0;
-                    char temp4[VAL_LEN]="";
-                    char temp5[VAL_LEN]="";
-                    while(reg!=NULL)
-                    {
-                        int num=getRegNum(reg);
-                        if(num!=-1)
-                        {
-                            sprintf(temp4,"%X",num);
-                            strcat(temp5,temp4);
-                        }
-                        q++;
-                        reg=strtok(NULL, " ,");
-                    }
-                    if(q<2) strcat(temp5,"0");
                     sprintf(LISTING[index].objcode, "%02X", opcode);
-                    strcat(LISTING[index].objcode,temp5);
                 }
-                else
+                else if (format == 2)
                 {
-                    int loc=strtol(LISTING[index].loc, NULL, 16);
+                    char* reg = strtok(LISTING[index].operand, " ,");
+                    int q = 0;
+                    char temp4[VAL_LEN] = "";
+                    char temp5[VAL_LEN] = "";
+                    int num;
+                    while (reg != NULL)
+                    {
+                        num = getRegNum(reg);
+                        if (num != -1)
+                        {
+                            sprintf(temp4, "%X", num);
+                            strcat(temp5, temp4);
+                        }
+                        else break;
+                        q++;
+                        reg = strtok(NULL, " ,");
+                    }
+                    if (q < 2) strcat(temp5, "0");
+                    sprintf(LISTING[index].objcode, "%02X%s", opcode, temp5);
                 }
+                else if (format == 3)
+                {
+                    if (strlen(LISTING[index].operand) == 0)
+                    {
+                        sprintf(LISTING[index].objcode, "%02X0000", opcode);
+                        continue;
+                    }
+                    flag = 2;
+                    int plusFlag = 0;
+                    char opr12[2][VAL_LEN];
+                    char oprtemp[VAL_LEN];
+                    char tempoperand[VAL_LEN];
+                    char* oprptr;
+                    strcpy(tempoperand, LISTING[index].operand);
+                    oprptr = strtok(tempoperand, " ,");
+                    int oprsize = 0;
+                    int disp = 0;
+                    while (oprptr != NULL)
+                    {
+                        strcpy(opr12[oprsize++], oprptr);
+                        oprptr = strtok(NULL, " ,");
+                    }
+                    if (oprsize == 2)
+                    {
+                        if (!strcmp(opr12[1], "X")) plusFlag = 8;
+                    }
+                    int firstLoc = 0;
+                    int LastLoc = 0;
+                    if (opr12[0][0] == '#' || opr12[0][0] == '@')
+                    {
+                        for (int f = 1; f < strlen(opr12[0]); f++)
+                        {
+                            oprtemp[f - 1] = opr12[0][f];
+                        }
+                    }
+                    else strcpy(oprtemp, opr12[0]);
+                    if (isdigit(oprtemp[0]))
+                    {
+                        flag = 0;
+                        sprintf(LISTING[index].objcode, "%02X%X%03X", opcode, flag, atoi(oprtemp));
+                    }
+                    else
+                    {
+                        LastLoc = getSymbolAddr(SYMTAB, symLen, oprtemp);
+                        firstLoc = strtol(LISTING[index].loc, NULL, 16);
+                        disp = LastLoc - firstLoc - format;
+                        if ((disp > 2047 || disp < -2048))
+                        {
+                            if (baseaddr != -1)
+                            {
+                                flag = 4;
+                                flag += plusFlag;
+                                firstLoc = baseaddr;
+                                disp = LastLoc - firstLoc;
+                                sprintf(LISTING[index].objcode, "%02X%X%03X", opcode, flag, disp);
+                            }
+                        }
+                        else
+                        {
+                            flag += plusFlag;
+                            if (disp < 0) disp = 4095 + (disp + 1);
+                            sprintf(LISTING[index].objcode, "%02X%X%03X", opcode, flag, disp);
+                        }
+                    }
 
+                }
+                else if (format == 4)
+                {
+                    flag = 1;
+                    char tempopr[VAL_LEN] = "";
+                    int u;
+                    if (LISTING[index].operand[0] == '#' || LISTING[index].operand[0] == '@')
+                    {
+                        for (u = 1; u < strlen(LISTING[index].operand); u++)
+                        {
+                            tempopr[u - 1] = LISTING[index].operand[u];
+                        }
+                        tempopr[u - 1] = '\0';
+                    }
+                    else strcpy(tempopr, LISTING[index].operand);
+
+                    if (isdigit(tempopr[0]))
+                    {
+                        sprintf(LISTING[index].objcode, "%02X%X%05X", opcode, flag, atoi(tempopr));
+                    }
+                    else
+                    {
+                        sprintf(LISTING[index].objcode, "%02X%X%05X", opcode, flag, getSymbolAddr(SYMTAB, symLen, tempopr));
+                    }
+                }
             }
-            
+
             //
         }
     }
+    printListingFile(fpw2, LISTING, listLen);
+    // object file
+    fprintf(fpw3, "H%s  ", SYMTAB[0].statement);
+    int start = 0;
+    int end = 0;
+    int t;
+    for (t = listLen - 1; t >= 0; t--)
+    {
+        if (strlen(LISTING[t].loc) != 0) break;
+    }
+    end = strlen(LISTING[t].objcode) / 2 + strtol(LISTING[t].loc, NULL, 16);
+    for (int h = 0; h < listLen; h++)
+    {
+        if (strlen(LISTING[h].loc) != 0)
+        {
+            start = strtol(LISTING[h].loc, NULL, 16);
+            break;
+        }
+    }
+    fprintf(fpw3, "%06X%06X\n", start, end);
+    int indexT = 0;
+    //T loop
+    while (1)
+    {
+        if (indexT >= listLen) break;
+        //max index 59. real size 60
+        char recordT[61] = "";
+        fprintf(fpw3, "T");
+        while (1)
+        {
+            if (strlen(LISTING[indexT].loc) != 0 && strlen(LISTING[indexT].objcode) != 0)
+            {
+                fprintf(fpw3, "%06X", strtol(LISTING[indexT].loc, NULL, 16));
+                break;
+            }
+            indexT++;
+        }
+        while (1)
+        {
+            if (strcmp(LISTING[indexT].opt, "RESW") == 0 || strcmp(LISTING[indexT].opt, "RESB") == 0) break;
+            if (strlen(LISTING[indexT].objcode) != 0)
+            {
+                if (indexT >= listLen) break;
+                if ((strlen(recordT) + strlen(LISTING[indexT].objcode)) > 60) break;
+                strcat(recordT, LISTING[indexT].objcode);
+                indexT++;
+            }
+            else indexT++;
+        }
+        fprintf(fpw3, "%02X%s\n", strlen(recordT) / 2, recordT);
+    }
+    //M loop
+    for (int cm = 0; cm < listLen; cm++)
+    {
+        if (strcmp(LISTING[cm].opt, "JSUB") == 0 || strcmp(LISTING[cm].opt, "+JSUB") == 0) fprintf(fpw3, "M%06X%02X\n", strtol(LISTING[cm].loc, NULL, 16) + 1, strlen(LISTING[cm].objcode) / 2 + 1);
+    }
+    fprintf(fpw3, "E%06X", start);
+    fclose(fpr2);
+    fclose(fpw2);
+    fclose(fpw3);
     return 0;
 }
