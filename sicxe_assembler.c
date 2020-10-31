@@ -24,7 +24,7 @@ typedef struct listing
     char operand[VAL_LEN];
     char comment[32];
     char objcode[VAL_LEN];
-    int isComment = 0;
+    int isComment;
 } listing;
 
 typedef struct opt
@@ -584,6 +584,7 @@ int main(int argc, char* argv[])
                 else strcpy(LISTING[listLen].comment, "");
             }
             strcpy(LISTING[listLen].objcode, "");
+            LISTING[listLen].isComment=0;
             listLen++;
         }
     }
@@ -812,12 +813,13 @@ int main(int argc, char* argv[])
         if (indexT >= listLen) break;
         //max index 59. real size 60
         char recordT[61] = "";
+        int halfRecordT=0;
         fprintf(fpw3, "T");
         while (1)
         {
             if (strlen(LISTING[indexT].loc) != 0 && strlen(LISTING[indexT].objcode) != 0)
             {
-                fprintf(fpw3, "%06X", strtol(LISTING[indexT].loc, NULL, 16));
+                fprintf(fpw3, "%06lX", strtol(LISTING[indexT].loc, NULL, 16));
                 break;
             }
             indexT++;
@@ -834,12 +836,22 @@ int main(int argc, char* argv[])
             }
             else indexT++;
         }
-        fprintf(fpw3, "%02X%s\n", strlen(recordT) / 2, recordT);
+        halfRecordT=strlen(recordT)/2;
+        fprintf(fpw3, "%02X%s\n", halfRecordT, recordT);
     }
     //M loop
+    int halfRecordM=0;
+    
     for (int cm = 0; cm < listLen; cm++)
     {
-        if (strcmp(LISTING[cm].opt, "JSUB") == 0 || strcmp(LISTING[cm].opt, "+JSUB") == 0) fprintf(fpw3, "M%06X%02X\n", strtol(LISTING[cm].loc, NULL, 16) + 1, strlen(LISTING[cm].objcode) / 2 + 1);
+        if (findOpt(LISTING[cm].opt)==4) 
+        {
+            if(LISTING[cm].operand[0] !='#' && LISTING[cm].operand[0] !='@')
+            {
+                halfRecordM=strlen(LISTING[cm].objcode) / 2 + 1;
+                fprintf(fpw3, "M%06lX%02X\n", strtol(LISTING[cm].loc, NULL, 16) + 1, halfRecordM);
+            }
+        }
     }
     fprintf(fpw3, "E%06X", start);
     fclose(fpr2);
