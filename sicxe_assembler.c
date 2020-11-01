@@ -25,6 +25,9 @@ typedef struct listing
     char comment[32];
     char objcode[VAL_LEN];
     int isComment;
+    int errtype1;
+    int errtype2;
+    int errtype3;
 } listing;
 
 typedef struct opt
@@ -133,19 +136,19 @@ int notopt(char opt[], char opr[])
     }
     else if (!strcmp(opt, "BYTE"))
     {
-        if (opr[0] == 'C')
+        if (strstr(opr,"C\'")!=NULL)
         {
             int charcount = 0;
-            for (int i = 1; i < strlen(opr); i++)
+            for (int i = 0; i < strlen(opr); i++)
             {
-                if (opr[i] != '\'')
+                if (opr[i] != '\'' && opr[i]!='=' && opr[i] != 'C')
                 {
                     charcount++;
                 }
             }
             return charcount;
         }
-        else if (opr[0] == 'X')
+        else if (strstr(opr,"X\'")!=NULL)
         {
             return 1;
         }
@@ -254,7 +257,7 @@ int getRegNum(char ch[])
 {
     for (int i = 0; i < REGTAB_LEN; i++)
     {
-        if (!strcmp(REGTAB[i].r, ch)) return REGTAB[i].num;
+        if (strstr(ch, REGTAB[i].r)!=NULL) return REGTAB[i].num;
     }
     return -1;
 }
@@ -321,8 +324,41 @@ void printListingFile(FILE* fpw, listing LISTING[], int len)
     for (int i = 0; i < len; i++)
     {
         if (LISTING[i].isComment == 1) fprintf(fpw, "  %s", LISTING[i].comment);
-        else fprintf(fpw, "%s %s  %s  %s  %s  %s\n", LISTING[i].loc, LISTING[i].label, LISTING[i].opt, LISTING[i].operand, LISTING[i].comment, LISTING[i].objcode);
+        else 
+        {
+            fprintf(fpw, "%s %s  %s  %s  %s  %s", LISTING[i].loc, LISTING[i].label, LISTING[i].opt, LISTING[i].operand, LISTING[i].comment, LISTING[i].objcode);
+            if(LISTING[i].errtype1==1) fprintf(fpw, "   %s", "Duplicate Symbol Error");
+            if(LISTING[i].errtype2==1) fprintf(fpw, "   %s", "Invalid Operation Error");
+            if(LISTING[i].errtype3==1) fprintf(fpw, "   %s", "Undefined Symbol Error");
+            fprintf(fpw, "\n");
+        }
     }
+}
+
+int getSymbolIndex(symbol symtab[], int symsize, char label[])
+{
+    for(int j=0; j<symsize; j++)
+    {
+        if(strstr(label, symtab[j].statement)!=NULL) return j;
+    }
+    return -1;
+}
+
+int checkOpt(char opt[])
+{
+    int format=findOpt(opt);
+    if(format==-1)
+    {
+        if(!strcmp(opt,"START")) return 1;
+        if(!strcmp(opt,"END")) return 1;
+        if(!strcmp(opt,"BASE")) return 1;
+        if(!strcmp(opt,"RESW")) return 1;
+        if(!strcmp(opt,"RESB")) return 1;
+        if(!strcmp(opt,"WORD")) return 1;
+        if(!strcmp(opt,"BYTE")) return 1;
+    }
+    else return 1;
+    return 0;
 }
 
 int main(int argc, char* argv[])
@@ -589,6 +625,53 @@ int main(int argc, char* argv[])
         }
     }
     //LISTING - listLen, SYMTAB - symLen
+    //check error
+    int sindex=0;
+    int* chksymbol=(int*)malloc(sizeof(int)*symLen);
+    //check duplicate symbol error. error type 1
+    for(int in=0; in<symLen; in++)
+    {
+        chksymbol[in]=0;
+    }
+    for(int e=0; e<listLen; e++)
+    {
+        //check invalid operation code error. error type 2
+        if(checkOpt(LISTING[e].opt)==0) LISTING[e].errtype2=1;
+        //check undefined symbol error. error type 3
+        if(getSymbolIndex(SYMTAB,symLen,LISTING[e].operand)==-1)
+        {
+            if(strlen(LISTING[e].operand)!=0)
+            {
+                if(LISTING[e].operand[0]=='#' || LISTING[e].operand[0]=='@')
+                {
+                    if(!isdigit(LISTING[e].operand[1])) LISTING[e].errtype3=1;
+                }
+                else
+                {
+                    if(!isdigit(LISTING[e].operand[0])) 
+                    {
+                        if(getRegNum(LISTING[e].operand)==-1) 
+                        {
+                            if(strstr(LISTING[e].operand,"X\'")!=NULL || strstr(LISTING[e].operand,"C\'")!=NULL);
+                            else LISTING[e].errtype3=1;
+                        }
+                    }
+                }
+            }
+        }
+        if(strlen(LISTING[e].label)!=0)
+        {
+            sindex=getSymbolIndex(SYMTAB, symLen, LISTING[e].label);
+            if(sindex!=-1) 
+            {
+                chksymbol[sindex]++;
+                if(chksymbol[sindex]>1)
+                {
+                    LISTING[e].errtype1=1;
+                }
+            }
+        }
+    }
     //make object code of each line
     int baseaddr = -1;
     int startaddr = 0;
@@ -625,14 +708,14 @@ int main(int argc, char* argv[])
                 }
                 else if (!strcmp(LISTING[index].opt, "BYTE"))
                 {
-                    if (LISTING[index].operand[0] == 'C')
+                    if (strstr(LISTING[index].operand,"C\'")!=NULL)
                     {
                         char temp[VAL_LEN] = "";
                         char temp2[VAL_LEN] = "";
                         int asciitemp;
-                        for (int m = 1; m < strlen(LISTING[index].operand); m++)
+                        for (int m = 0; m < strlen(LISTING[index].operand); m++)
                         {
-                            if (LISTING[index].operand[m] != '\'')
+                            if (LISTING[index].operand[m] != '\'' && LISTING[index].operand[m] != '=' && LISTING[index].operand[m] != 'C')
                             {
                                 asciitemp = LISTING[index].operand[m];
                                 sprintf(temp2, "%02X", asciitemp);
@@ -641,13 +724,13 @@ int main(int argc, char* argv[])
                         }
                         strcpy(LISTING[index].objcode, temp);
                     }
-                    else if (LISTING[index].operand[0] == 'X')
+                    else if (strstr(LISTING[index].operand,"X\'")!=NULL)
                     {
                         char temp3[VAL_LEN] = "";
                         int temp_index = 0;
-                        for (int m = 1; m < strlen(LISTING[index].operand); m++)
+                        for (int m = 0; m < strlen(LISTING[index].operand); m++)
                         {
-                            if (LISTING[index].operand[m] != '\'')
+                            if (LISTING[index].operand[m] != '\'' && LISTING[index].operand[m] != '=' && LISTING[index].operand[m] != 'X')
                             {
                                 temp3[temp_index++] = LISTING[index].operand[m];
                             }
